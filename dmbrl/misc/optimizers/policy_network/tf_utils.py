@@ -12,6 +12,7 @@ def get_weight_decay_loss(var_list):
     for var in var_list:
         i_weight_decay = tf.nn.l2_loss(var)
         weight_decay_dict[var.name] = i_weight_decay
+        # always zero
         weight_decay_sum += tf.reduce_mean(weight_decay_sum)
     return weight_decay_sum, weight_decay_dict
 
@@ -20,6 +21,7 @@ def logsigmoid(x):
     return -tf.nn.softplus(-x)
 
 
+# not clear what this function does 
 def logit_bernoulli_entropy(logits):
     ent = (1. - tf.nn.sigmoid(logits)) * logits - logsigmoid(logits)
     return ent
@@ -46,6 +48,9 @@ def gauss_log_prob(mu, logstd, x):
     return tf.reduce_sum(gp, [1])
 
 
+# https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
+# about two gaussian KL divergence 
+# assume different dim independent
 def gauss_KL(mu1, logstd1, mu2, logstd2):
     # KL divergence between two paramaterized guassian distributions
     var1 = tf.exp(2 * logstd1)
@@ -56,7 +61,8 @@ def gauss_KL(mu1, logstd1, mu2, logstd2):
     )
     return kl
 
-
+# see https://proofwiki.org/wiki/Differential_Entropy_of_Gaussian_Distribution
+# assume different dim independent
 def gauss_ent(mu, logstd):
     # shannon entropy for a paramaterized guassian distributions
     h = tf.reduce_sum(
@@ -65,6 +71,7 @@ def gauss_ent(mu, logstd):
     return h
 
 
+# return  x[inds0, inds1, :]
 def slice_2d(x, inds0, inds1):
     inds0 = tf.cast(inds0, tf.int64)
     inds1 = tf.cast(inds1, tf.int64)
@@ -111,10 +118,12 @@ class SetFromFlat(object):
         assigns = []
         for (shape, v) in zip(shapes, var_list):
             size = np.prod(shape)
+            # assign theta to v
             assigns.append(
                 tf.assign(v, tf.reshape(theta[start:start + size], shape))
             )
             start += size
+        # gather all option as one
         self.op = tf.group(*assigns)
 
     def __call__(self, theta):

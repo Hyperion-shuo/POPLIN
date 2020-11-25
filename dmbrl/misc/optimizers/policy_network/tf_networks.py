@@ -369,7 +369,7 @@ class W_MLP(MLP):
                                                     train=self._train)
                         self._h[ii] = \
                             normalizer(self._h[ii], 'normalizar_' + str(ii))
-
+        # is h[noise_dim, out_put_dim]                    
         return tf.reshape(self._h[-1], [-1, self._dims[-1]])
 
     def _parse_weight_vec(self, weight_vec):
@@ -378,6 +378,7 @@ class W_MLP(MLP):
             dim_in, dim_out = self._dims[ii], self._dims[ii + 1]
 
             # the w weight noise
+            # the first dim means how many batch noise?
             noise_weight = tf.reshape(
                 weight_vec[:, self._w_flat_id[ii][0]: self._w_flat_id[ii][1]],
                 [-1, dim_in, dim_out]

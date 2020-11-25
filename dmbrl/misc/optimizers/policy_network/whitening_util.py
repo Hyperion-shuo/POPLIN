@@ -6,12 +6,16 @@
 import numpy as np
 import tensorflow as tf
 
+# only this three keys
+# store their statistics
 _ALLOW_KEY = ['state', 'diff_state', 'action']
 
 
 def init_whitening_stats(key_list):
     whitening_stats = {}
     for key in key_list:
+        # step means time steps in MDP
+        # initialize as 0.01 to avoid calculate mean = sum / step 's zero step
         whitening_stats[key] = {'mean': 0.0, 'variance': 1, 'step': 0.01,
                                 'square_sum': 0.01, 'sum': 0.0, 'std': np.nan}
     return whitening_stats
@@ -55,7 +59,9 @@ def update_whitening_stats(whitening_stats, rollout_data, key):
 
 
 def add_whitening_operator(whitening_operator, whitening_variable, name, size):
-
+    # whitening_operator  is a dict
+    # whitening_variable is a list
+    # see base policy 50 _build_ph
     with tf.variable_scope('whitening_' + name):
         whitening_operator[name + '_mean'] = tf.Variable(
             np.zeros([1, size], np.float32),

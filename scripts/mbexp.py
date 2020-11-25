@@ -7,6 +7,10 @@ import argparse
 import pprint
 import copy
 
+import sys
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
 from dotmap import DotMap
 
 from dmbrl.misc.MBExp import MBExperiment

@@ -5,6 +5,7 @@
 import tensorflow as tf
 
 
+# review CS231n tomorrow
 def layer_norm(x, name_scope, epsilon=1e-5, use_bias=True,
                use_scale=True, gamma_init=None, data_format='NHWC'):
     """

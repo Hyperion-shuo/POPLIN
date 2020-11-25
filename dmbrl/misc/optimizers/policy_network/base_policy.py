@@ -25,6 +25,9 @@ class base_policy_network(object):
 
     def __init__(self, args, session, name_scope,
                  observation_size, action_size):
+        # args must have policy_network_shape, pct_testset, policy_epochs, minibatch_size
+        # the function that integration base_policy_network need more specific args
+        # see BC_...._policy __init__fucntion
         self.args = args
 
         self._session = session
@@ -72,6 +75,7 @@ class base_policy_network(object):
         pass
 
     def forward_network(self, observation, weight_vec=None):
+        # s -> a, no need to recover state 
         normalized_start_state = (
             observation - self._whitening_operator['state_mean']
         ) / self._whitening_operator['state_std']
@@ -98,6 +102,8 @@ class base_policy_network(object):
         self._network_var_list = \
             self._trainable_var_list + self._whitening_variable
 
+        # this is a function 
+        # all with self._set_network_weights(weight_dict) to set network_weights and state mean
         self._set_network_weights = tf_utils.set_network_weights(
             self._session, self._network_var_list, self._name_scope
         )
@@ -115,6 +121,7 @@ class base_policy_network(object):
     def get_whitening_operator(self):
         return self._whitening_operator
 
+    # set key 'state' only
     def _set_whitening_var(self, whitening_stats):
         whitening_util.set_whitening_var(
             self._session, self._whitening_operator, whitening_stats, ['state']
@@ -130,7 +137,10 @@ class base_policy_network(object):
         raise NotImplementedError
 
     def optimize_weights(self, data_dict, training_keys):
-
+        
+        # data_dict has three level , data_dict[key][set_id][num_data]
+        # dim set_id seems wired 
+        # see where it feed , double check 
         test_set_id = np.arange(len(data_dict['start_state']))
         num_test_data = int(len(test_set_id) * self.args.pct_testset)
         self._npr.shuffle(test_set_id)
@@ -142,6 +152,7 @@ class base_policy_network(object):
 
         # supervised training the behavior (behavior cloning)
         for epoch in range(self.args.policy_epochs):
+            # only take key 'state' in train_set
             total_batch_len = len(train_set['start_state'])
             total_batch_inds = np.arange(total_batch_len)
             self._npr.shuffle(total_batch_inds)
