@@ -62,7 +62,7 @@ class policy_network(base_policy.base_policy_network):
         self._set_var_list()
 
     def build_loss(self):
-
+        # build  start_state placeholder and whitening
         self._build_ph()
         self._tensor, self._update_operator = {}, {}
 
@@ -93,6 +93,9 @@ class policy_network(base_policy.base_policy_network):
             self.args.policy_lr)
         )
 
+    # data_dict must have state actions and whitening_stats 
+    # seems data_dict has three level data_dict[key][set_id][num_data]
+    # need check how this whitening and store
     def train(self, data_dict, training_info={}):
 
         # Step 1: update the running mean
@@ -103,6 +106,7 @@ class policy_network(base_policy.base_policy_network):
             data_dict['target_action'] = data_dict['action']  # for training
         elif self.args.training_scheme == 'BC-AI':
             # add imaginary data to the dataset
+            # why no whitening_stats update here?
             for key in ['start_state', 'action']:
                 data_dict[key] = \
                     np.concatenate([data_dict[key], imaginary_dataset[key]])
@@ -111,5 +115,6 @@ class policy_network(base_policy.base_policy_network):
         else:
             raise NotImplementedError
 
+        # whitening_stats must be computed, does this using full buffer?
         self._set_whitening_var(data_dict['whitening_stats'])
         self.optimize_weights(data_dict, ['start_state', 'target_action'])

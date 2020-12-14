@@ -7,6 +7,7 @@ import numpy as np
 class Optimizer:
 
     def __init__(self, *args, **kwargs):
+        # (dO,), defined in MPC 157
         self.sy_cur_obs = None
         self._proposed_act_seqs_ph = None
         pass

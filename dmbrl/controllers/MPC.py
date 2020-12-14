@@ -161,6 +161,8 @@ class MPC(Controller):
                                                   self.sy_cur_obs)
             self.optimizer.setup(self._compile_cost, True)
             self.model.sess.run(tf.variables_initializer([self.sy_cur_obs]))
+            # POPLIN_A retrun exactly it self
+            # POPLIN_P return mean of prev_sol: np.mean(prev_sol) * np.ones([self.sol_dim])
             self.prev_sol = self.optimizer.reset_prev_sol(self.prev_sol)  # hack
         else:
             assert self._params.il_cfg.use_gt_dynamics
@@ -243,7 +245,6 @@ class MPC(Controller):
             soln, self.prev_sol = self.optimizer.obtain_test_solution(
                 self.prev_sol, self.init_var, self.per, self.dU, obs=obs, average=average
             )
-
         elif self.model.is_tf_model:
             self.sy_cur_obs.load(obs, self.model.sess)
             soln, self.prev_sol = self.optimizer.obtain_solution(
@@ -318,7 +319,7 @@ class MPC(Controller):
         init_costs = tf.zeros([nopt, self.npart])
         init_obs = tf.tile(self.sy_cur_obs[None], [nopt * self.npart, 1])
 
-        weight_input = tf.reshape(tf.tile(
+        weight_input = tf.reshape( tf.tile(
             tf.transpose(weight_input, [1, 0, 2])[:, :, None],
             [1, 1, self.npart, 1]  # hor, popsize, npart, dU
         ), [self.plan_hor, -1, tf_data_dict['weight_size']])

@@ -26,11 +26,15 @@ def update_whitening_stats(whitening_stats, rollout_data, key):
     new_sum, new_step_sum, new_sq_sum = 0.0, 0.0, 0.0
 
     if type(rollout_data) is dict:
+        # dict conccat all rollout
+        # notice dim, sum along axis0
         new_sum += rollout_data[key].sum(axis=0)
         new_sq_sum += (np.square(rollout_data[key])).sum(axis=0)
         new_step_sum += rollout_data[key].shape[0]
     else:
         assert type(rollout_data) is list
+        # each rollout is a list
+        # each list has a dict inside
         for i_episode in rollout_data:
             if key == 'state':
                 i_data = i_episode['obs']
@@ -59,9 +63,11 @@ def update_whitening_stats(whitening_stats, rollout_data, key):
 
 
 def add_whitening_operator(whitening_operator, whitening_variable, name, size):
-    # whitening_operator  is a dict
-    # whitening_variable is a list
-    # see base policy 50 _build_ph
+    '''
+        whitening_operator is a dict contain all named operator
+        whitening_variable is a list using for counting parameter num and intialize
+        see file base policy line 50 _build_ph function for using
+    '''
     with tf.variable_scope('whitening_' + name):
         whitening_operator[name + '_mean'] = tf.Variable(
             np.zeros([1, size], np.float32),
@@ -95,11 +101,16 @@ def add_whitening_operator(whitening_operator, whitening_variable, name, size):
 
 
 def copy_whitening_var(whitening_stats, input_name, output_name):
+    '''
+        copy input_name in whitening_stats to output_name in whitening_stats
+        only mean and std is copyed
+    '''
     whitening_stats[output_name] = {}
     whitening_stats[output_name]['mean'] = whitening_stats[input_name]['mean']
     whitening_stats[output_name]['std'] = whitening_stats[input_name]['std']
 
-
+# ust whitening_operator to assign whitening_stats[key][item] to tf.Variable(name=key+item)
+# usually state mean and state std
 def set_whitening_var(session, whitening_operator, whitening_stats, key_list):
 
     for i_key in key_list:
@@ -107,6 +118,7 @@ def set_whitening_var(session, whitening_operator, whitening_stats, key_list):
             session.run(
                 whitening_operator[i_key + '_' + i_item + '_op'],
                 feed_dict={whitening_operator[i_key + '_' + i_item + '_ph']:
+                            # notice two dim here, first dim 1
                            np.reshape(whitening_stats[i_key][i_item], [1, -1])}
             )
 
@@ -114,6 +126,11 @@ def set_whitening_var(session, whitening_operator, whitening_stats, key_list):
 def append_normalized_data_dict(data_dict, whitening_stats,
                                 target=['start_state', 'diff_state',
                                         'end_state']):
+    '''
+        use whitening_stat to normalize data_dict
+        target in start_state, end_state, diff_state
+        the normalized variable stored in data_dict
+    '''
     data_dict['n_start_state'] = \
         (data_dict['start_state'] - whitening_stats['state']['mean']) / \
         whitening_stats['state']['std']

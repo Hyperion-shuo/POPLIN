@@ -1,0 +1,8 @@
+python scripts/mbexp.py -logdir log/test_env/POPLINA_INIT_gym_ant \
+    -env gym_ant \
+    -o exp_cfg.exp_cfg.ntrain_iters 2 \
+    -o ctrl_cfg.cem_cfg.cem_type POPLINA-INIT \
+    -o ctrl_cfg.cem_cfg.training_scheme BC-AI \
+    -o ctrl_cfg.cem_cfg.test_policy 1 \
+    -ca model-type PE -ca prop-type E \
+    -ca opt-type POPLIN-A

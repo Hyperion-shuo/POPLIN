@@ -5,7 +5,16 @@
 import tensorflow as tf
 import numpy as np
 
+# # form . import not working in juoyter notebook
+# # add path to sys to fix
+# import os
+# import sys
+# module_path = os.path.dirname(os.path.abspath(__file__))
+# sys.path.append(module_path)
+# import tf_norm
+
 from . import tf_norm
+
 
 
 def get_activation_func(activation_type):
@@ -221,7 +230,7 @@ class MLP(object):
 
         Input:
                 dims: a list of N+1 int, number of hidden units (last one is the
-                input dimension)
+                output dimension)
                 act_func: a list of N activation functions
                 add_bias: a boolean, indicates whether adding bias or not
                 scope: tf scope of the model
@@ -345,6 +354,10 @@ class W_MLP(MLP):
         return self.weight_size
 
     def __call__(self, input_vec, weight_vec):
+        '''
+            weight_vec is the noisy_perturbation add to network vector
+
+        '''
         self._h = [None] * self._num_layer
         input_vec = tf.reshape(input_vec, [-1, 1, self._dims[0]])
 
@@ -373,6 +386,9 @@ class W_MLP(MLP):
         return tf.reshape(self._h[-1], [-1, self._dims[-1]])
 
     def _parse_weight_vec(self, weight_vec):
+        '''
+            conver weight_vec from a singel long list to w[num_layer], b[num_layers]
+        '''
         w_noise, b_noise = [], []
         for ii in range(self._num_layer):
             dim_in, dim_out = self._dims[ii], self._dims[ii + 1]
@@ -413,6 +429,7 @@ class W_MLP(MLP):
 
 
 def flatten_feature(x):
+    # (dim,x1,...xn) to (dim, -1)
     return tf.reshape(x, [-1, int(np.prod(x.get_shape().as_list()[1:]))])
 
 

@@ -18,11 +18,18 @@ def get_weight_decay_loss(var_list):
 
 
 def logsigmoid(x):
+    '''
+        return log(1 / (1 + exp(-x)))
+    '''
+    # tf.nn.softplus returns log(exp(x) + 1)
     return -tf.nn.softplus(-x)
 
 
 # not clear what this function does 
 def logit_bernoulli_entropy(logits):
+    '''
+        
+    '''
     ent = (1. - tf.nn.sigmoid(logits)) * logits - logsigmoid(logits)
     return ent
 
@@ -189,6 +196,8 @@ class set_network_weights(object):
         for var in self._var_list:
             var_name = var.name.replace(self._base_namescope, '')
             assert var_name in weight_dict
+            # self._placeholders[var_name] is a pointer?
+            # can be key?
             feed_dict[self._placeholders[var_name]] = weight_dict[var_name]
 
         self._session.run(self._assigns, feed_dict)

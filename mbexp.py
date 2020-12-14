@@ -48,5 +48,9 @@ if __name__ == "__main__":
     parser.add_argument('-e_popsize', type=int, default=500,
                         help='different popsize to use')
     args = parser.parse_args()
-
+    
     main(args.env, "MPC", args.ctrl_arg, args.override, args.logdir, args)
+
+    # import mbbl test
+    # from mbbl.env.gym_env import acrobot
+    # print("import successfully")

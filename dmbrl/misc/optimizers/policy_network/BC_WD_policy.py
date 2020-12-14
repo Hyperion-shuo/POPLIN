@@ -81,9 +81,10 @@ class policy_network(base_policy.base_policy_network):
             After each update, we synchronize target_MLP by copying weights from
             MLP.
         """
-
+        # state whitening_operator is build in when calling _build_ph()
         self._build_ph()
         self._tensor, self._update_operator = {}, {}
+        # here build target_state whitening_operator for normalize
         whitening_util.add_whitening_operator(
             self._whitening_operator, self._whitening_variable,
             'target_state', self._observation_size

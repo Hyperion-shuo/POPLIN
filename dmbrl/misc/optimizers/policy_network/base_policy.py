@@ -74,6 +74,8 @@ class base_policy_network(object):
     def set_weights(self, weights_dict):
         pass
 
+    # this is not used for training 
+    # maybe for planning 
     def forward_network(self, observation, weight_vec=None):
         # s -> a, no need to recover state 
         normalized_start_state = (
@@ -103,7 +105,7 @@ class base_policy_network(object):
             self._trainable_var_list + self._whitening_variable
 
         # this is a function 
-        # all with self._set_network_weights(weight_dict) to set network_weights and state mean
+        # call with self._set_network_weights(weight_dict) to set network_weights and state mean
         self._set_network_weights = tf_utils.set_network_weights(
             self._session, self._network_var_list, self._name_scope
         )
@@ -144,6 +146,7 @@ class base_policy_network(object):
         test_set_id = np.arange(len(data_dict['start_state']))
         num_test_data = int(len(test_set_id) * self.args.pct_testset)
         self._npr.shuffle(test_set_id)
+        # check this dim and structure
         test_set = {key: data_dict[key][test_set_id][:num_test_data]
                     for key in training_keys}
         train_set = {key: data_dict[key][test_set_id][num_test_data:]
@@ -164,6 +167,7 @@ class base_policy_network(object):
                 start = start * self.args.minibatch_size
                 end = min(start + self.args.minibatch_size, total_batch_len)
                 batch_inds = total_batch_inds[start: end]
+                # data_dict indices become 2 level,but previous three?
                 feed_dict = {self._input_ph[key]: data_dict[key][batch_inds]
                              for key in training_keys}
 

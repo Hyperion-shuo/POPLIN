@@ -63,14 +63,19 @@ class policy_network(base_policy.base_policy_network):
         self._set_var_list()
 
     def build_loss(self):
-
+        
+        # build state whitening variables、placeholders,options
+        # build start_state placeholders
         self._build_ph()
         self._tensor, self._update_operator = {}, {}
 
         self._MLP_var_list = self._MLP.get_variable_list()
+        # self._set_network_weight defined in self._set_var_list include state whitening
+        # here _set_weight only include MLP weight
         self._set_weight = tf_utils.set_network_weights(
             self._session, self._MLP_var_list, ''
         )
+        # useless learning rate
         logger.info("policy training learning rate: {}".format(
             self.args.policy_lr)
         )
@@ -107,7 +112,7 @@ class policy_network(base_policy.base_policy_network):
         # get the average of the weights
         self._set_whitening_var(data_dict['whitening_stats'])
         average_weights = \
-            np.reshape(np.mean(data_dict['target_weight'], axis=0), [1, -1])
+            np.reshape(np.mean(data_dict['target_weight'], axis=0), [1, -1]) # (1, weight_size1)
 
         if self.args.zero_weight == 'yes':
             average_weights *= 0.0

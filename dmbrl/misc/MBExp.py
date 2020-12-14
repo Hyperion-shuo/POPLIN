@@ -96,6 +96,8 @@ class MBExperiment:
         needed_num_steps = 64
         self.task_hor = 64
         """
+
+        # logger.info("Collecting n_init rollout before policy trainning")
         while True:
             samples.append(
                 self.agent.sample(
@@ -111,6 +113,7 @@ class MBExperiment:
                 break
 
         if self.ninit_rollouts > 0:
+            # logger.info("Performing init policy trianing")
             self.policy.train(
                 [sample["obs"] for sample in samples],
                 [sample["ac"] for sample in samples],

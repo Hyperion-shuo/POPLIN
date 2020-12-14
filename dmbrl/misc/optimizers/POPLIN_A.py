@@ -99,6 +99,8 @@ class POPLINAOptimizer(Optimizer):
         self.tf_compatible, self.cost_function = None, None
 
         # behavior cloning network
+        # about tf graph
+        # https://stackoverflow.com/questions/45093688/how-to-understand-sess-as-default-and-sess-graph-as-default
         with self.tf_sess.graph.as_default():
             with tf.variable_scope("bc_policy_network"):
                 if self._params.cem_cfg.training_scheme in ['BC-AR', 'BC-AI']:
