@@ -8,7 +8,7 @@ import pprint
 import copy
 
 import sys
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from dotmap import DotMap

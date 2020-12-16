@@ -143,3 +143,18 @@ def append_normalized_data_dict(data_dict, whitening_stats,
         whitening_stats['diff_state']['std']
     data_dict['diff_state'] = \
         data_dict['end_state'] - data_dict['start_state']
+
+# test case
+# import numpy as np
+
+# whitening_stats = init_whitening_stats(['state'])
+# print(whitening_stats['state'])
+# update_whitening_stats(whitening_stats, {'state': np.arange(10)}, 'state')
+# print(whitening_stats['state'])
+# update_whitening_stats(whitening_stats, {'state': np.arange(15)}, 'state')
+# print(whitening_stats['state'])
+
+# whitening_operator, whitening_variable = dict(), list()
+# add_whitening_operator(whitening_operator, whitening_variable, 'state', 8)
+# print("whitening_operator: \n\t", whitening_operator, '\n\n')
+# print("whitening_variable: \n\t",whitening_variable)
