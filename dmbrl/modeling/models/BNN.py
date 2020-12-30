@@ -387,6 +387,7 @@ class BNN:
                 kwargs["weight_decay"] = None if kwargs["weight_decay"] == "None" else float(kwargs["weight_decay"])
                 kwargs["activation"] = None if kwargs["activation"] == "None" else kwargs["activation"][1:-1]
                 kwargs["ensemble_size"] = int(kwargs["ensemble_size"])
+                kwargs["normalization"] = None
                 structure.append(FC(**kwargs))
         self.layers = structure
 

@@ -48,7 +48,7 @@ class MBExperiment:
         self.env = get_required_argument(params.sim_cfg, "env", "Must provide environment.")
         self.task_hor = get_required_argument(params.sim_cfg, "task_hor", "Must provide task horizon.")
         self._params = params
-        params.sim_cfg.misc = copy.copy(params)
+        # params.sim_cfg.misc = copy.copy(params)
         if params.sim_cfg.get("stochastic", False):
             self.agent = Agent(DotMap(
                 env=self.env, noisy_actions=True,
@@ -149,22 +149,28 @@ class MBExperiment:
                 [sample["reward_sum"] for sample in samples[:self.neval]])
             )
             # test the policy if needed
-            if self._params.misc.ctrl_cfg.cem_cfg.test_policy > 0:
-                test_data = []
-                for _ in range(5):
-                    test_data.append(
-                        self.agent.sample(self.task_hor, self.policy,
-                                          test_policy=True, average=False)
-                    )
-                test_traj_rets.extend([
-                    np.mean([i_test_data["reward_sum"] for i_test_data in test_data])
-                ])
-                test_traj_obs.extend(
-                    [i_test_data["obs"] for i_test_data in test_data]
-                )
-                test_traj_acs.extend(
-                    [i_test_data["ac"] for i_test_data in test_data]
-                )
+
+            # comment out by ShenShuo
+            # passing while config to misc is much too messy
+            # we juse comment it out, if need testing policy, we consider a smarter way to pass 
+            # test_policy arg
+
+            # if self._params.misc.ctrl_cfg.cem_cfg.test_policy > 0:
+            #     test_data = []
+            #     for _ in range(5):
+            #         test_data.append(
+            #             self.agent.sample(self.task_hor, self.policy,
+            #                               test_policy=True, average=False)
+            #         )
+            #     test_traj_rets.extend([
+            #         np.mean([i_test_data["reward_sum"] for i_test_data in test_data])
+            #     ])
+            #     test_traj_obs.extend(
+            #         [i_test_data["obs"] for i_test_data in test_data]
+            #     )
+            #     test_traj_acs.extend(
+            #         [i_test_data["ac"] for i_test_data in test_data]
+            #     )
 
             traj_obs.extend([sample["obs"] for sample in samples])
             traj_acs.extend([sample["ac"] for sample in samples])
@@ -191,11 +197,38 @@ class MBExperiment:
             if len(os.listdir(iter_dir)) == 0:
                 os.rmdir(iter_dir)
 
+            # train policy and model together
             if i < self.ntrain_iters - 1:
                 self.policy.train(
                     [sample["obs"] for sample in samples],
                     [sample["ac"] for sample in samples],
                     [sample["rewards"] for sample in samples]
                 )
+            
+            # if i % 10 == 0:
+            #     self.log_model_predictions(i)
 
-                # TODO: train the policy network
+    def log_model_predictions(self, itr):
+        import matplotlib.pyplot as plt
+
+        action_sequence = self.policy.sample_random_action_sequences(num_sequences=1, horizon=200) #20 reacher
+        action_sequence = action_sequence[0]
+
+        mpe, true_states, pred_states = self.agent.calculate_mean_prediction_error(action_sequence, self.policy)
+        assert self.env.observation_space.shape[0] == true_states.shape[1] == pred_states.shape[1]
+        ob_dim = self.env.observation_space.shape[0]
+        self.fig = plt.figure(figsize=(10, 1 * ob_dim))
+
+        if ob_dim > 16:
+            ob_dim = 16
+        if ob_dim%2 == 1:
+            ob_dim -= 1
+
+        # plot the predictions
+        self.fig.clf()
+        for i in range(ob_dim):
+            plt.subplot(ob_dim/2, 2, i+1)
+            plt.plot(true_states[:,i], 'g')
+            plt.plot(pred_states[:,i], 'r')
+        self.fig.suptitle('MPE: ' + str(mpe))
+        self.fig.savefig(self.logdir + '/itr_'+str(itr)+'_predictions.png', dpi=200, bbox_inches='tight')

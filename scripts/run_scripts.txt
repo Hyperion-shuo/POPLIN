@@ -1,8 +1,29 @@
-python scripts/mbexp.py -logdir log/test_env/POPLINA_INIT_gym_ant \
+python scripts/mbexp.py -logdir log/test_env/POPLINA_INIT_ant \
     -env gym_ant \
     -o exp_cfg.exp_cfg.ntrain_iters 2 \
     -o ctrl_cfg.cem_cfg.cem_type POPLINA-INIT \
     -o ctrl_cfg.cem_cfg.training_scheme BC-AI \
-    -o ctrl_cfg.cem_cfg.test_policy 1 \
+    -o ctrl_cfg.cem_cfg.test_policy 0 \
+    -ca model-type PE -ca prop-type E \
+    -ca opt-type POPLIN-A
+
+# simple exp for test
+python scripts/mbexp.py -logdir log/test_env/POPLINA_INIT_reacher \
+    -env reacher \
+    -o exp_cfg.exp_cfg.ntrain_iters 20 \
+    -o ctrl_cfg.cem_cfg.cem_type POPLINA-INIT \
+    -o ctrl_cfg.cem_cfg.training_scheme BC-AI \
+    -o ctrl_cfg.cem_cfg.test_policy 0 \
+    -ca model-type PE -ca prop-type E \
+    -ca opt-type POPLIN-A
+
+# horizon test one gym_cheetah
+python scripts/mbexp.py -logdir log/horizon_test/POPLINP_AVG/Cheetah_20 \
+    -env gym_cheetah \
+    -o exp_cfg.exp_cfg.ntrain_iters 200 \
+    -o ctrl_cfg.cem_cfg.cem_type POPLINP-SEP \
+    -o ctrl_cfg.cem_cfg.training_scheme AVG-R \
+    -o ctrl_cfg.cem_cfg.policy_network_shape [32] \
+    -o ctrl_cfg.opt_cfg.init_var 0.1 \
     -ca model-type PE -ca prop-type E \
     -ca opt-type POPLIN-A

@@ -8,7 +8,7 @@ import pprint
 import copy
 
 import sys
-os.environ["CUDA_VISIBLE_DEVICES"]='0'
+os.environ["CUDA_VISIBLE_DEVICES"]='2'
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from dotmap import DotMap
@@ -52,13 +52,5 @@ if __name__ == "__main__":
     parser.add_argument('-e_popsize', type=int, default=500,
                         help='different popsize to use')
     args = parser.parse_args()
-    # debug args
-    # args = parser.parse_args(" -env gym_cartpole  -logdir /data/ShenShuo/workspace/POPLIN/log/debug\
-    #         -o exp_cfg.exp_cfg.ntrain_iters 50 \
-    #         -o ctrl_cfg.cem_cfg.cem_type POPLINA-REPLAN \
-    #         -o ctrl_cfg.cem_cfg.training_scheme BC-AI \
-    #         -o ctrl_cfg.cem_cfg.test_policy 0 \
-    #         -ca model-type PE -ca prop-type E \
-    #         -ca opt-type POPLIN-A".split())
 
     main(args.env, "MPC", args.ctrl_arg, args.override, args.logdir, args)

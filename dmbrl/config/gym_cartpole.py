@@ -17,7 +17,7 @@ from dmbrl.modeling.layers import FC
 
 class GymCartpoleConfigModule:
     ENV_NAME = "MBRLGYM_cartpole-v0"
-    TASK_HORIZON = 1000
+    TASK_HORIZON = 200
     NTRAIN_ITERS = 300
     NROLLOUTS_PER_ITER = 1
     PLAN_HOR = 30

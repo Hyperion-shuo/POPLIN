@@ -8,6 +8,9 @@ import pprint
 
 from dotmap import DotMap
 
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
 from dmbrl.misc.MBExp import MBExperiment
 from dmbrl.controllers.MPC import MPC
 from dmbrl.config import create_config
@@ -30,7 +33,7 @@ def main(env, ctrl_type, ctrl_args, overrides, model_dir, logdir):
         cfg.exp_cfg.exp_cfg.policy = MPC(cfg.ctrl_cfg)
     exp = MBExperiment(cfg.exp_cfg)
 
-    os.makedirs(exp.logdir)
+    os.makedirs(exp.logdir, exist_ok=True)
     with open(os.path.join(exp.logdir, "config.txt"), "w") as f:
         f.write(pprint.pformat(cfg.toDict()))
 
@@ -44,6 +47,8 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--override', action='append', nargs=2, default=[])
     parser.add_argument('-model-dir', type=str, required=True)
     parser.add_argument('-logdir', type=str, required=True)
-    args = parser.parse_args()
+    args = parser.parse_args('-model-dir \
+           /data/ShenShuo/workspace/POPLIN/log/horizon_exp/POPLINP_AVG_Cheetah/h20/2020-12-19--07:09:21 \
+           -env gym_cheetah -logdir /data/ShenShuo/workspace/POPLIN/log/render'.split())
 
     main(args.env, "MPC", args.ctrl_arg, args.override, args.model_dir, args.logdir)

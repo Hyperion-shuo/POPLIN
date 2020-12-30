@@ -111,3 +111,56 @@ class Agent:
             "reward_sum": reward_sum,
             "rewards": np.array(rewards),
         }
+
+    def calculate_mean_prediction_error(self, action_sequence, policy):
+        # Use only one of the models in the ensemble for this calculation
+
+        # obtain ground truth states from the env
+        true_states = self.perform_actions(action_sequence)['observation']
+         
+        # predict states using the model and given action sequence and initial state
+        # 扩充一维（1,n)去匹配placeholder
+        ob = np.expand_dims(true_states[0],0)
+
+        pred_states = []
+        
+        # for ac in action_sequence:
+        #     pred_states.append(ob)
+        #     action = np.expand_dims(ac, 0)
+        #     ob = policy.predict_next_obs(ob, action)
+        # pred_states = np.squeeze(pred_states)
+
+        pred_states = policy.predict_trajectory(ob, action_sequence)
+
+        # Calculate the mean prediction error here
+        mpe = np.mean(np.power(pred_states - true_states, 2))# TODO(Q1)
+
+        return mpe, true_states, pred_states
+
+    def perform_actions(self, actions):
+        ob = self.env.reset()
+        obs, acs, rewards, next_obs, terminals = [], [], [], [], []
+        steps = 0
+        for ac in actions:
+            obs.append(ob)
+            acs.append(ac)
+            ob, rew, done, _ = self.env.step(ac)
+            # add the observation after taking a step to next_obs
+            next_obs.append(ob)
+            rewards.append(rew)
+            steps += 1
+            # If the episode ended, the corresponding terminal value is 1
+            # otherwise, it is 0
+            if done:
+                terminals.append(1)
+                break
+            else:
+                terminals.append(0)
+        
+        return{
+            "observation" : np.array(obs, dtype=np.float32),
+            "reward" : np.array(rewards, dtype=np.float32),
+            "action" : np.array(acs, dtype=np.float32),
+            "next_observation": np.array(next_obs, dtype=np.float32),
+            "terminal": np.array(terminals, dtype=np.float32)
+        }

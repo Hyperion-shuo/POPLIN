@@ -222,6 +222,13 @@ class MPC(Controller):
         if self.model.is_tf_model:
             for update_fn in self.update_fns:
                 update_fn(self.model.sess)
+    
+    def sample_random_action_sequences(self, num_sequences, horizon):
+        random_action_sequences = np.random.uniform(np.tile(self.ac_lb, [num_sequences, horizon, 1]),
+                                  np.tile(self.ac_ub, [num_sequences, horizon, 1]), 
+                                  size=(num_sequences, horizon , self.ac_lb.shape[0]))
+        random_action_sequences = random_action_sequences.astype(np.float32)
+        return  random_action_sequences
 
     def act(self, obs, t, get_pred_cost=False, test_policy=False, average=False):
         """Returns the action that this controller would take at time t given observation obs.
@@ -282,6 +289,35 @@ class MPC(Controller):
             if get_pred_cost:
                 return self.act(obs, t), pred_cost
         return self.act(obs, t)
+    
+    # def predict_next_obs(self, ob, act):
+    #     sy_ob = tf.placeholder(shape=[1, ob[0].shape[0]], dtype=tf.float32)
+    #     sy_act = tf.placeholder(shape=[1, act[0].shape[0]], dtype=tf.float32)
+
+    #     sy_next_ob = self._predict_next_obs(sy_ob, sy_act)
+    #     sy_next_ob = self.obs_postproc2(sy_next_ob)
+    #     next_ob = self.model.sess.run([sy_next_ob], feed_dict={sy_ob: ob, sy_act: act})
+
+    #     return next_ob[0]
+    
+    def predict_trajectory(self, ob, action_sequence):
+        with self.model.sess.graph.as_default():
+            self.sy_cur_obs.load(ob[0], self.model.sess)
+            sy_ob = self.sy_cur_obs[None]
+            sy_act_seq = tf.placeholder(shape=[action_sequence.shape[0], action_sequence.shape[1]], dtype=tf.float32, name='act_seq')
+
+            sy_pred_states = []
+
+            for i in range(len(action_sequence)):
+                sy_pred_states.append(sy_ob[0])
+                sy_ob = self._predict_next_obs(sy_ob, sy_act_seq[i][None])
+                sy_ob = self.obs_postproc2(sy_ob)
+            
+            sy_pred_states = tf.stack(sy_pred_states)
+            pred_states = self.model.sess.run(sy_pred_states, feed_dict={sy_ob: ob, sy_act_seq: action_sequence})
+
+        return pred_states
+
 
     def dump_logs(self, primary_logdir, iter_logdir):
         """Saves logs to either a primary log directory or another iteration-specific directory.

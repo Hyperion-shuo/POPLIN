@@ -109,7 +109,12 @@ def create_config(env_name, ctrl_type, ctrl_args, overrides, logdir):
     cfg.ctrl_cfg.cem_cfg.init_var = cfg.ctrl_cfg.opt_cfg.init_var
 
     # needed for mb_benchmarking. should not be used anyway else
-    cfg.ctrl_cfg.opt_cfg.mb_cfg = cfg.ctrl_cfg.mb_cfg
+
+    # comment out by ShenShuo 
+    # we do not use benchmarking
+    # see BNN train about benchmarking
+
+    # cfg.ctrl_cfg.opt_cfg.mb_cfg = cfg.ctrl_cfg.mb_cfg
 
     return cfg
 
@@ -334,9 +339,13 @@ def _create_ctrl_config(ctrl_cfg, cfg_module, ctrl_type, ctrl_args, type_map):
         raise NotImplementedError("Unknown controller class.")
 
     # the config added to control the gradient based planning
-    _create_gbp_config(ctrl_cfg.gbp_cfg)
+
+    # comment out by ShenShuo
+    # we do not use gbp and il
+    
+    # _create_gbp_config(ctrl_cfg.gbp_cfg)
     _create_cem_config(ctrl_cfg.cem_cfg)
-    _create_il_config(ctrl_cfg.il_cfg)
+    # _create_il_config(ctrl_cfg.il_cfg)
     _create_mb_config(ctrl_cfg.mb_cfg)
 
 
