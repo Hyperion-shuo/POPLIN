@@ -205,8 +205,8 @@ class MBExperiment:
                     [sample["rewards"] for sample in samples]
                 )
             
-            # if i % 10 == 0:
-            #     self.log_model_predictions(i)
+            if i % 10 == 0:
+                self.log_model_predictions(i)
 
     def log_model_predictions(self, itr):
         import matplotlib.pyplot as plt
@@ -215,6 +215,13 @@ class MBExperiment:
         action_sequence = action_sequence[0]
 
         mpe, true_states, pred_states = self.agent.calculate_mean_prediction_error(action_sequence, self.policy)
+        savemat(
+                os.path.join(self.logdir, str(itr), "states.mat"),
+                {
+                    "t_state": true_states,
+                    "p_state": pred_states,
+                }
+            )
         assert self.env.observation_space.shape[0] == true_states.shape[1] == pred_states.shape[1]
         ob_dim = self.env.observation_space.shape[0]
         self.fig = plt.figure(figsize=(10, 1 * ob_dim))
