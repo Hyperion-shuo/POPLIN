@@ -24,7 +24,8 @@ def create_config(env_name, ctrl_type, ctrl_args, overrides, logdir):
             exp_cfg=DotMap(
                 ntrain_iters=int,
                 nrollouts_per_iter=int,
-                ninit_rollouts=int
+                ninit_rollouts=int,
+                test_policy=make_bool
             ),
             log_cfg=DotMap(
                 nrecord=int,
@@ -39,19 +40,21 @@ def create_config(env_name, ctrl_type, ctrl_args, overrides, logdir):
                 ign_var=make_bool,
             ),
             opt_cfg=DotMap(
+                use_critic=make_bool,
                 plan_hor=int,
                 init_var=float,
+                gamma = float
             ),
             log_cfg=DotMap(
                 save_all_models=make_bool,
                 log_traj_preds=make_bool,
                 log_particles=make_bool
             ),
-            gbp_cfg=DotMap(
-                plan_iter=int,
-                lr=float,
-                gbp_type=int
-            ),
+            # gbp_cfg=DotMap(
+            #     plan_iter=int,
+            #     lr=float,
+            #     gbp_type=int
+            # ),
             cem_cfg=DotMap(
                 cem_type=str,
                 training_scheme=str,
@@ -61,7 +64,6 @@ def create_config(env_name, ctrl_type, ctrl_args, overrides, logdir):
                 policy_epochs=int,
                 policy_lr=float,
                 policy_weight_decay=float,
-                test_policy=int,
                 minibatch_size=int,
                 training_top_k=int,
                 discriminator_network_shape=list,
@@ -75,10 +77,6 @@ def create_config(env_name, ctrl_type, ctrl_args, overrides, logdir):
                 discriminator_gradient_penalty_coeff=float,
                 zero_weight=str
             ),
-            il_cfg=DotMap(
-                expert_amc_dir=int,
-                use_gt_dynamics=int
-            ),
             mb_cfg=DotMap(
                 activation=str,
                 dynamics_lr=float,
@@ -86,6 +84,13 @@ def create_config(env_name, ctrl_type, ctrl_args, overrides, logdir):
                 do_benchmarking=str,
                 mb_batch_size=int,
                 mb_epochs=int
+            ),
+            critic_cfg=DotMap(
+                activation=str,
+                lr=float,
+                normalization=str,
+                batch_size=int,
+                epochs=int
             ),
         )
     )
@@ -125,21 +130,6 @@ def _create_gbp_config(exp_cfg):
     exp_cfg.gbp_type = 3
 
 
-def _create_il_config(exp_cfg):
-    default_path = [
-        # desktop
-        "/home/tingwu/imitation-rl/data/humanoid_mocap/all_asfamc/test",
-        # vector cluster
-        "/scratch/gobi2/tingwu/data/humanoid_mocap/all_asfamc/test"
-    ]
-    exp_cfg.expert_amc_dir = None
-    for path in default_path:
-        if os.path.exists(path):
-            exp_cfg.expert_amc_dir = path
-
-    exp_cfg.use_gt_dynamics = 0
-
-
 def _create_mb_config(exp_cfg):
     exp_cfg.activation = 'swish'
     exp_cfg.dynamics_lr = 0.001
@@ -161,7 +151,6 @@ def _create_cem_config(exp_cfg):
     exp_cfg.policy_lr = 3e-3
     exp_cfg.minibatch_size = 64
     exp_cfg.policy_weight_decay = 1e-5  # test this 1e-5
-    exp_cfg.test_policy = 0
     exp_cfg.zero_weight = 'No'
 
     # the discriminator
@@ -186,8 +175,29 @@ def _create_exp_config(exp_cfg, cfg_module, logdir, type_map):
 
     exp_cfg.exp_cfg.ntrain_iters = cfg_module.NTRAIN_ITERS
     exp_cfg.exp_cfg.nrollouts_per_iter = cfg_module.NROLLOUTS_PER_ITER
+    exp_cfg.exp_cfg.test_policy = False
 
     exp_cfg.log_cfg.logdir = logdir
+
+def _create_critic_config(critic_cfg, cfg_module, type_map):
+    # TODO
+    #  misc
+    critic_init_cfg = critic_cfg.critic_init_cfg
+    critic_init_cfg.model_class = NN
+    critic_init_cfg.num_nets = 5
+    type_map.ctrl_cfg.critic_cfg.critic_init_cfg.num_nets = create_conditional(
+        int, lambda string: int(string) > 1, "Ensembled models must have more than one net."
+    )
+    critic_cfg.critic_train_cfg = cfg_module.CRITIC_TRAIN_CFG
+    critic_init_cfg.critic_constructor = cfg_module.critic_constructor
+
+    type_map.ctrl_cfg.critic_cfg.critic_init_cfg.model_dir = str
+    type_map.ctrl_cfg.critic_cfg.critic_init_cfg.load_model = make_bool
+    
+    type_map.ctrl_cfg.critic.critic_train_cfg = DotMap(
+    batch_size=int, epochs=int,
+    holdout_ratio=float, max_logging=int
+    )   
 
 
 def _create_ctrl_config(ctrl_cfg, cfg_module, ctrl_type, ctrl_args, type_map):
@@ -209,6 +219,8 @@ def _create_ctrl_config(ctrl_cfg, cfg_module, ctrl_type, ctrl_args, type_map):
 
         ctrl_cfg.opt_cfg.plan_hor = cfg_module.PLAN_HOR
         ctrl_cfg.opt_cfg.init_var = cfg_module.INIT_VAR
+        ctrl_cfg.opt_cfg.gamma = cfg_module.GAMMA
+        ctrl_cfg.opt_cfg.use_critic = cfg_module.USE_CRITIC
         ctrl_cfg.opt_cfg.obs_cost_fn = cfg_module.obs_cost_fn
         ctrl_cfg.opt_cfg.ac_cost_fn = cfg_module.ac_cost_fn
         if hasattr(cfg_module, "obs_ac_cost_fn"):
@@ -345,8 +357,9 @@ def _create_ctrl_config(ctrl_cfg, cfg_module, ctrl_type, ctrl_args, type_map):
     
     # _create_gbp_config(ctrl_cfg.gbp_cfg)
     _create_cem_config(ctrl_cfg.cem_cfg)
-    # _create_il_config(ctrl_cfg.il_cfg)
+
     _create_mb_config(ctrl_cfg.mb_cfg)
+    _create_critic_config(ctrl_cfg.critic_cfg, cfg_module, type_map)
 
 
 def apply_override(cfg, type_map, override_key, value, prefix=''):

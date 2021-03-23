@@ -25,7 +25,10 @@ class SwimmerConfigModule:
     PLAN_HOR = 30
     INIT_VAR = 0.25
     MODEL_IN, MODEL_OUT = 10, 8  # obs - > 8, action 2
+    CRITIC_IN = MODEL_OUT
     GP_NINDUCING_POINTS = 300
+    GAMMA = 0.99
+    USE_CRITIC = False
 
     def __init__(self):
         # self.ENV = gym.make(self.ENV_NAME)
@@ -36,6 +39,7 @@ class SwimmerConfigModule:
         cfg.gpu_options.allow_growth = True
         self.SESS = tf.Session(config=cfg)
         self.NN_TRAIN_CFG = {"epochs": 5}
+        self.CRITIC_TRAIN_CFG = {"epochs": 5}
         self.OPT_CFG = {
             "Random": {
                 "popsize": 2500
@@ -123,6 +127,21 @@ class SwimmerConfigModule:
             model.add(FC(self.MODEL_OUT, weight_decay=0.0001))
         model.finalize(tf.train.AdamOptimizer, {"learning_rate": 0.001})
         return model
+        
+    def critic_constructor(self, critic_init_cfg, misc=None):
+        model = get_required_argument(critic_init_cfg, "model_class", "Must provide model class")(DotMap(
+            name="critic", num_networks=get_required_argument(critic_init_cfg, "num_nets", "Must provide ensemble size"),
+            sess=self.SESS, load_model=critic_init_cfg.get("load_model", False),
+            model_dir=critic_init_cfg.get("model_dir", None),
+            misc=misc
+        ))
+        if not critic_init_cfg.get("load_model", False):
+            model.add(FC(200, input_dim=self.CRITIC_IN, activation="tanh", weight_decay=0.00005))
+            model.add(FC(200, activation="tanh", weight_decay=0.00005)) 
+            model.add(FC(1, weight_decay=0.0001))
+        model.finalize(tf.train.AdamOptimizer, {"learning_rate": 0.001})
+        return model
+
 
     def gp_constructor(self, model_init_cfg):
         model = get_required_argument(model_init_cfg, "model_class", "Must provide model class")(DotMap(

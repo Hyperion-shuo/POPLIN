@@ -68,6 +68,8 @@ class MPC(Controller):
                     .mode (str): Internal optimizer that will be used. Choose between [CEM, Random].
                     .cfg (DotMap): A map of optimizer initializer parameters.
                     .plan_hor (int): The planning horizon that will be used in optimization.
+                    .gamma(float): The discount factor used in optimizer
+                    .use_critic(bool):Whether to use critic when compiling reward/cost
                     .obs_cost_fn (func): A function which computes the cost of every observation
                         in a 2D matrix.
                         Note: Must be able to process both NumPy and Tensorflow arrays.
@@ -82,6 +84,12 @@ class MPC(Controller):
                     .log_particles (bool) (optional) If True, saves all predicted particles trajectories.
                         Defaults to False. Note: Takes precedence over log_traj_preds.
                         Warning: Can be very memory-intensive
+                .critic_cfg
+                    .critic_init_cfg A DotMap of initialization parameters for the critic.
+                        .critic_constructor (func): A function which constructs an instance of this
+                            critic, given critic_init_cfg.
+                    .critic_train_cfg(optional) A DotMap of training parameters that will be passed
+                        into the critic every time is is trained. Defaults to an empty dict.
         """
         super().__init__(params)
         self._params = params
@@ -106,6 +114,8 @@ class MPC(Controller):
         self.targ_proc = params.prop_cfg.get("targ_proc", lambda obs, next_obs: next_obs)
         self.npart = get_required_argument(params.prop_cfg, "npart", "Must provide number of particles.")
 
+        self.gamma = get_required_argument(params.opt_cfg, "gamma", "Must provide gamma.")
+        self.use_critic = get_required_argument(params.opt_cfg, "use_critic","Must provide whether to use critic")
         self.opt_mode = get_required_argument(params.opt_cfg, "mode", "Must provide optimization method.")
         self.plan_hor = get_required_argument(params.opt_cfg, "plan_hor", "Must provide planning horizon.")
         self.obs_cost_fn = get_required_argument(params.opt_cfg, "obs_cost_fn", "Must provide cost on observations.")
@@ -116,6 +126,13 @@ class MPC(Controller):
         self.log_traj_preds = params.log_cfg.get("log_traj_preds", False)
         self.log_particles = params.log_cfg.get("log_particles", False)
 
+        # Create critic
+        if self.use_critic:
+            self.critic = get_required_argument(
+                params.critic_cfg.critic_init_cfg, "critic_constructor", "Must provide a critic constructor."
+            )(params.critic_cfg.critic_init_cfg, misc=params)
+            self.critic_train_cfg = params.critic_cfg.get("critic_train_cfg", {})
+        
         # Perform argument checks
         if self.prop_mode not in ["E", "DS", "MM", "TS1", "TSinf", "GT"]:
             raise ValueError("Invalid propagation method.")
@@ -149,6 +166,13 @@ class MPC(Controller):
             0, self.targ_proc(np.zeros([1, self.dO]),
                               np.zeros([1, self.dO])).shape[-1]
         )
+
+        if self.use_critic:
+            self.critic_train_in = np.array([]).reshape(
+                0, self.obs_preproc(np.zeros([1, self.dO])).shape[-1]
+            )
+            self.critic_train_targs = np.array([]).reshape(0, 1)
+
         if self.model.is_tf_model:
             assert not self._params.il_cfg.use_gt_dynamics
             self.sy_cur_obs = tf.Variable(np.zeros(self.dO), dtype=tf.float32)
@@ -189,7 +213,8 @@ class MPC(Controller):
             obs_trajs: A list of observation matrices, observations in rows.
             acs_trajs: A list of action matrices, actions in rows.
             rews_trajs: A list of reward arrays.
-
+            eg. if gym_swimmer env
+            obs_trajs: [(1001,8)] acs_trajs: [(1000,2)] rews_trajs (1000,)
         Returns: None.
         """
         if self.model.is_tf_model:
@@ -202,8 +227,31 @@ class MPC(Controller):
             self.train_targs = np.concatenate([self.train_targs] + new_train_targs, axis=0)
 
             # Train the model
+            # misc control epoches and batch size in BNN, parameters from dobenchmarking
+            # not using in NN
             self.model_train_cfg['misc'] = self._params.mb_cfg
             self.model.train(self.train_in, self.train_targs, **self.model_train_cfg)
+        
+        if self.critic.is_tf_model and self.use_critic:
+            # Construct new training points and add to training set
+            new_train_in, new_train_targs = [], []
+            for obs, rews in zip(obs_trajs, rews_trajs):
+                new_train_in.append(self.obs_preproc(obs[:-1]))
+                # TODO double check
+                # NN.predict with default factored = False returns mean and var of 5 ensemble
+                # we only need mean here so take the first one 
+                # now next_state_value shape is (1000, 1)
+                next_state_value = self.critic.predict(obs[1:])[0]
+                # rews reshape from (1000,) to (1000, 1), add one dim
+                new_train_targs.append(next_state_value + rews.reshape(-1, 1))
+            self.critic_train_in = np.concatenate([self.critic_train_in] + new_train_in, axis=0)
+            self.critic_train_targs = np.concatenate([self.critic_train_targs] + new_train_targs, axis=0)
+
+            # Train the critic 
+            # TODO 
+            # not mb_cfg, using critic cfg
+            # self.model_train_cfg['misc'] = self._params.mb_cfg
+            self.critic.train(self.critic_train_in, self.critic_train_targs, **self.critic_train_cfg)
 
         if self.optimizer.train_policy_network() and self.has_been_trained:
             # train the policy network here
@@ -290,15 +338,6 @@ class MPC(Controller):
                 return self.act(obs, t), pred_cost
         return self.act(obs, t)
     
-    # def predict_next_obs(self, ob, act):
-    #     sy_ob = tf.placeholder(shape=[1, ob[0].shape[0]], dtype=tf.float32)
-    #     sy_act = tf.placeholder(shape=[1, act[0].shape[0]], dtype=tf.float32)
-
-    #     sy_next_ob = self._predict_next_obs(sy_ob, sy_act)
-    #     sy_next_ob = self.obs_postproc2(sy_next_ob)
-    #     next_ob = self.model.sess.run([sy_next_ob], feed_dict={sy_ob: ob, sy_act: act})
-
-    #     return next_ob[0]
     
     def predict_trajectory(self, ob, action_sequence):
         with self.model.sess.graph.as_default():
@@ -480,35 +519,55 @@ class MPC(Controller):
         elif cem_type in ['POPLINP-UNI', 'POPLINP-SEP']:
             return self._compile_POPLINP_cost(ac_seqs, cem_type, tf_data_dict)
         # default value self.plan --> 30, self.dU --> 6 (cheetah)
+
         t, nopt = tf.constant(0), tf.shape(ac_seqs)[0]
+        '''
+            this part want to add gamma
+        '''
+        gamma = tf.constant(self.gamma)
         init_costs = tf.zeros([nopt, self.npart])
+        # [pop, plan_hor * dU] -> [pop, plan_hor , dU]
         ac_seqs = tf.reshape(ac_seqs, [-1, self.plan_hor, self.dU])
+        # original [pop, plan_hor , dU]
+        # transpose to [plan_hor, pop , dU]
+        # add one demonsion [plan_hor, pop , 1, dU] pop is ac_seqs num, brief of population 
+        # tile to [plan_hor, pop , npart, dU]
+        # reshape to [plan_hor, pop * npart, dU]
         ac_seqs = tf.reshape(tf.tile(
             tf.transpose(ac_seqs, [1, 0, 2])[:, :, None],
             [1, 1, self.npart, 1]
         ), [self.plan_hor, -1, self.dU])
+        # tile([1, dO] , [pop * npart, 1] ->[pop * npart, dO]
+        # [pop * npart, dO]
         init_obs = tf.tile(self.sy_cur_obs[None], [nopt * self.npart, 1])
 
         def continue_prediction(t, *args):
             return tf.less(t, self.plan_hor)
 
         if get_pred_trajs:
+            # [1, pop * npart, dO]
             pred_trajs = init_obs[None]
 
             def iteration(t, total_cost, cur_obs, pred_trajs):
+                # [plan_hor, pop * npart, dU] - > [pop * npart, dU] taker one time step's action
+                # [pop * npart, dU]
                 cur_acs = ac_seqs[t]
+                # [pop * npart, dO]
                 next_obs = self._predict_next_obs(cur_obs, cur_acs)
                 if self.obs_ac_cost_fn is not None:
+                    # [pop ,npart]
                     delta_cost = tf.reshape(
                         self.obs_ac_cost_fn(next_obs, cur_acs),
                         [-1, self.npart]
                     )
                 else:
+                    # [pop ,npart]
                     delta_cost = tf.reshape(
                         self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs),
                         [-1, self.npart]
                     )
                 next_obs = self.obs_postproc2(next_obs)
+                # [t, pop * npart, dO]
                 pred_trajs = tf.concat([pred_trajs, next_obs[None]], axis=0)
                 return t + 1, total_cost + delta_cost, next_obs, pred_trajs
 
@@ -520,30 +579,70 @@ class MPC(Controller):
             )
 
             # Replace nan costs with very high cost
+            # [pop, npart] -> [pop]
             costs = tf.reduce_mean(tf.where(tf.is_nan(costs), 1e6 * tf.ones_like(costs), costs), axis=1)
+            # [plan_hor + 1, pop * npart, dO] -> [plan_hor + 1, pop, npart, dO]
             pred_trajs = tf.reshape(pred_trajs, [self.plan_hor + 1, -1, self.npart, self.dO])
             return costs, pred_trajs
         else:
-            def iteration(t, total_cost, cur_obs):
-                cur_acs = ac_seqs[t]
-                next_obs = self._predict_next_obs(cur_obs, cur_acs)
-                if self.obs_ac_cost_fn is not None:
-                    delta_cost = tf.reshape(
-                        self.obs_ac_cost_fn(next_obs, cur_acs),
-                        [-1, self.npart]
-                    )
-                else:
-                    delta_cost = tf.reshape(
-                        self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs), [-1, self.npart]
-                    )
-                return t + 1, total_cost + delta_cost, self.obs_postproc2(next_obs)
+            if not self.use_critic:
+                # TODO
+                # not add gamma
+                def iteration(t, total_cost, cur_obs):
+                    cur_acs = ac_seqs[t]
+                    next_obs = self._predict_next_obs(cur_obs, cur_acs)
+                    if self.obs_ac_cost_fn is not None:
+                        delta_cost = tf.reshape(
+                            self.obs_ac_cost_fn(next_obs, cur_acs),
+                            [-1, self.npart]
+                        )
+                    else:
+                        delta_cost = tf.reshape(
+                            self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs), [-1, self.npart]
+                        )
+                    return t + 1, total_cost + delta_cost, self.obs_postproc2(next_obs)
 
-            _, costs, _ = tf.while_loop(
-                cond=continue_prediction, body=iteration, loop_vars=[t, init_costs, init_obs]
-            )
+                _, costs, _ = tf.while_loop(
+                    cond=continue_prediction, body=iteration, loop_vars=[t, init_costs, init_obs]
+                )
 
-            # Replace nan costs with very high cost
-            return tf.reduce_mean(tf.where(tf.is_nan(costs), 1e6 * tf.ones_like(costs), costs), axis=1)
+                # Replace nan costs with very high cost
+                return tf.reduce_mean(tf.where(tf.is_nan(costs), 1e6 * tf.ones_like(costs), costs), axis=1)
+            else:
+                def iteration(t, total_cost, cur_obs):
+                    cur_acs = ac_seqs[t]
+                    next_obs = self._predict_next_obs(cur_obs, cur_acs)
+                    if self.obs_ac_cost_fn is not None:
+                        delta_cost = tf.reshape(
+                            self.obs_ac_cost_fn(next_obs, cur_acs),
+                            [-1, self.npart]
+                        )
+                    else:
+                        delta_cost = tf.reshape(
+                            self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs), [-1, self.npart]
+                        )
+                    # first step t is zero no need to +1
+                    t_float = tf.cast(t, tf.float32)
+                    discount = tf.pow(gamma, t_float)
+                    return t + 1, total_cost + discount * delta_cost, self.obs_postproc2(next_obs)
+
+                last_t, costs, last_obs = tf.while_loop(
+                    cond=continue_prediction, body=iteration, loop_vars=[t, init_costs, init_obs]
+                )
+                
+                # need to define a function like _predict_next_obs to deal with dimension
+                # luckily critic part don't need deal with different propagtion type like pets
+                last_t_float = tf.cast(last_t, tf.float32)
+                v = tf.pow(gamma, last_t_float) * self._predict_value(last_obs)
+                # reduce_mean alone [pop, part] part dim, to aline with costs
+                v = tf.reduce_mean(v, axis=1)
+                # Replace nan costs with very high cost
+                costs = tf.reduce_mean(tf.where(tf.is_nan(costs), 1e6 * tf.ones_like(costs), costs), axis=1)
+                # TODO check dim
+                costs += v
+
+                return costs
+
 
     def _predict_next_obs(self, obs, acs):
         proc_obs = self.obs_preproc(obs)
@@ -596,9 +695,27 @@ class MPC(Controller):
             return self.obs_postproc(obs, predictions)
         else:
             raise NotImplementedError()
+    
+    '''
+        olny used for critic
+    '''
+    def _predict_value(self, obs):
+        # obs shape is [pop * npart, dO]
+        # critic.predcit default factored = false
+        # return [pop * npart, dO] , mean of [ensemble , pop * npart, dO], axis = 0
+        # TODO 
+        value, _ = self.critic.create_prediction_tensors(obs)
+        # reshape to [pop, npart], and reduce mean of npart to evaulate action_seq
+        # TODO check reshape
+        value = tf.reshape(value, [-1, self.npart])
+        return value
 
     def _expand_to_ts_format(self, mat):
+        # [pop * npart, dO]
         dim = mat.get_shape()[-1]
+        # reshape to [pop, num_net, npart / num_net, dO]
+        # transpose to [num_net, pop, npart / num_net, dO]
+        # reshape to [num_net, pop * npart / num_net, dO]
         return tf.reshape(
             tf.transpose(
                 tf.reshape(mat, [-1, self.model.num_nets, self.npart // self.model.num_nets, dim]),

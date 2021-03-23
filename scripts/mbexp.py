@@ -38,7 +38,6 @@ def main(env, ctrl_type, ctrl_args, overrides, logdir, args):
 
     exp.run_experiment()
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-env', type=str, required=True,
@@ -51,14 +50,30 @@ if __name__ == "__main__":
                         help='Directory to which results will be logged (default: ./log)')
     parser.add_argument('-e_popsize', type=int, default=500,
                         help='different popsize to use')
-    args = parser.parse_args()
-    # debug args
-    # args = parser.parse_args(" -env gym_cartpole  -logdir /data/ShenShuo/workspace/POPLIN/log/debug\
+    # args = parser.parse_args()
+
+    # debug args POPLINP
+    # args = parser.parse_args(" -env gym_swimmer  -logdir /data/ShenShuo/workspace/POPLIN/log/debug\
     #         -o exp_cfg.exp_cfg.ntrain_iters 50 \
+    #         -o exp_cfg.exp_cfg.test_policy True\
     #         -o ctrl_cfg.cem_cfg.cem_type POPLINA-REPLAN \
     #         -o ctrl_cfg.cem_cfg.training_scheme BC-AI \
-    #         -o ctrl_cfg.cem_cfg.test_policy 0 \
     #         -ca model-type PE -ca prop-type E \
     #         -ca opt-type POPLIN-A".split())
+
+    # debug critic
+    # now we only finish the cem part, and config for gym_swimmer and halfcheetah
+    args = parser.parse_args(" -env halfcheetah  -logdir /data/ShenShuo/workspace/POPLIN/log/debug\
+            -o exp_cfg.exp_cfg.ntrain_iters 50 \
+            -o ctrl_cfg.opt_cfg.gamma 0.97\
+            -o ctrl_cfg.opt_cfg.use_critic Treu\
+            -ca model-type DE -ca prop-type E \
+            -ca opt-type CEM".split())
+
+    # debug args PETS 
+    # args = parser.parse_args(" -env halfcheetah  -logdir /data/ShenShuo/workspace/POPLIN/log/debug\
+    #         -o exp_cfg.exp_cfg.ntrain_iters 50 \
+    #         -ca model-type DE -ca prop-type E \
+    #         -ca opt-type CEM".split())
 
     main(args.env, "MPC", args.ctrl_arg, args.override, args.logdir, args)

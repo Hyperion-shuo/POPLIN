@@ -10,7 +10,7 @@ import os
 # legend_lable = []
 
 # file_list = glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)),'log/*/*/logs.mat'))
-file_list = glob.glob(os.path.join(os.path.dirname(__file__),'log/*/*/logs.mat'))
+file_list = glob.glob(os.path.join(os.path.dirname(__file__),'log/popsize_exp/POPLINP_AVG_Cheetah/p500/*/logs.mat'))
 print(file_list)
 legend_lable = []
 

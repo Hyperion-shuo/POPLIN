@@ -36,6 +36,7 @@ class MBExperiment:
                         iterations. Defaults to 1.
                     .ninit_rollouts (int): (optional) Number of initial rollouts. Defaults to 1.
                     .policy (controller): Policy that will be trained.
+                    .test_policy: Whether to test policy without CEM/POPLIN
 
                 .log_cfg:
                     .logdir (str): Parent of directory path where experiment data will be saved.
@@ -68,6 +69,7 @@ class MBExperiment:
         self.nrollouts_per_iter = params.exp_cfg.get("nrollouts_per_iter", 1)
         self.ninit_rollouts = params.exp_cfg.get("ninit_rollouts", 1)
         self.policy = get_required_argument(params.exp_cfg, "policy", "Must provide a policy.")
+        self.test_policy = params.exp_cfg.get("test_policy", False)
 
         self.logdir = os.path.join(
             get_required_argument(params.log_cfg, "logdir", "Must provide log parent directory."),
@@ -138,7 +140,7 @@ class MBExperiment:
             while True:
                 samples.append(
                     self.agent.sample(
-                        self.task_hor, self.policy
+                        self.task_hor, self.policy # , record_fname='/data/ShenShuo/workspace/POPLIN/log/record_video/video.mp4'
                     )
                 )
                 finished_num_steps += len(samples[-1]["ac"])
@@ -155,22 +157,22 @@ class MBExperiment:
             # we juse comment it out, if need testing policy, we consider a smarter way to pass 
             # test_policy arg
 
-            # if self._params.misc.ctrl_cfg.cem_cfg.test_policy > 0:
-            #     test_data = []
-            #     for _ in range(5):
-            #         test_data.append(
-            #             self.agent.sample(self.task_hor, self.policy,
-            #                               test_policy=True, average=False)
-            #         )
-            #     test_traj_rets.extend([
-            #         np.mean([i_test_data["reward_sum"] for i_test_data in test_data])
-            #     ])
-            #     test_traj_obs.extend(
-            #         [i_test_data["obs"] for i_test_data in test_data]
-            #     )
-            #     test_traj_acs.extend(
-            #         [i_test_data["ac"] for i_test_data in test_data]
-            #     )
+            if self.test_policy :
+                test_data = []
+                for _ in range(5):
+                    test_data.append(
+                        self.agent.sample(self.task_hor, self.policy,
+                                          test_policy=True, average=False)
+                    )
+                test_traj_rets.extend([
+                    np.mean([i_test_data["reward_sum"] for i_test_data in test_data])
+                ])
+                test_traj_obs.extend(
+                    [i_test_data["obs"] for i_test_data in test_data]
+                )
+                test_traj_acs.extend(
+                    [i_test_data["ac"] for i_test_data in test_data]
+                )
 
             traj_obs.extend([sample["obs"] for sample in samples])
             traj_acs.extend([sample["ac"] for sample in samples])

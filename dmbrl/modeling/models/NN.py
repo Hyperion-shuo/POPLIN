@@ -40,7 +40,7 @@ class NN:
 
         if params.get('sess', None) is None:
             config = tf.ConfigProto()
-            # config.gpu_options.allow_growth = True
+            config.gpu_options.allow_growth = True
             self._sess = tf.Session(config=config)
         else:
             self._sess = params.get('sess')
@@ -71,9 +71,10 @@ class NN:
             self.model_loaded = False
 
         if self.num_nets == 1:
-            logger.info("Created a neural network without variance predictions.")
+            logger.info("Created a neural network for %s without variance predictions." % self.name)
         else:
-            logger.info("Created an ensemble of %d neural networks without variance predictions." % (self.num_nets))
+            logger.info("Created an ensemble of %d neural networks for %s without variance predictions." 
+            % (self.num_nets, self.name))
 
     @property
     def is_probabilistic(self):

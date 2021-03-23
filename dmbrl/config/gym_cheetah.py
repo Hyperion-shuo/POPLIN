@@ -56,7 +56,7 @@ class HalfCheetahConfigModule:
                 "alpha": 0.1
             },
             "POPLIN-P": {
-                "popsize": 1500,
+                "popsize": 500,
                 "num_elites": 50,
                 "max_iters": 5,
                 "alpha": 0.1

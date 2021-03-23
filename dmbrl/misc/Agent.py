@@ -27,13 +27,6 @@ class Agent:
         """
         self.env = params.env
 
-        # load the imitation data if needed
-        if hasattr(self.env, '_expert_data_loaded') and \
-                (not self.env._expert_data_loaded):
-            self.env.load_expert_data(
-                params.params.misc.ctrl_cfg.il_cfg.expert_amc_dir
-            )
-
         self.noise_stddev = params.noise_stddev if params.get("noisy_actions", False) else None
 
         if isinstance(self.env, DotMap):
@@ -63,14 +56,14 @@ class Agent:
         recorder = None if not video_record else VideoRecorder(self.env, record_fname)
 
         times, rewards = [], []
+        # notcie here the final length of O is horizon + 1
+        # but for reward and action the length is just horizon
         O, A, reward_sum, done = [self.env.reset()], [], 0, False
         self._debug += 1
 
         policy.reset()
         # for t in range(20):
         for t in range(horizon):
-            if hasattr(self.env, 'render_imitation'):
-                self.env.render_imitation()
             if t % 50 == 10 and t > 1:
                 logger.info('Current timesteps: %d / %d, average time: %.5f'
                             % (t, horizon, np.mean(times)))
@@ -133,7 +126,7 @@ class Agent:
         pred_states = policy.predict_trajectory(ob, action_sequence)
 
         # Calculate the mean prediction error here
-        mpe = np.mean(np.power(pred_states - true_states, 2))# TODO(Q1)
+        mpe = np.mean(np.power(pred_states - true_states, 2))
 
         return mpe, true_states, pred_states
 

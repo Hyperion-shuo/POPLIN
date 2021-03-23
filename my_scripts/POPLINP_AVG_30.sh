@@ -2,9 +2,9 @@
 
 for((i=0; i<=2; i++))
 do
-python ../scripts/mbexp1.py -logdir ../log/horizon_exp/POPLINP_AVG_Cheetah/h30 \
-    -env gym_cheetah \
-    -o exp_cfg.exp_cfg.ntrain_iters 200 \
+python ../scripts/mbexp2.py -logdir ../log/horizon_exp/POPLINP_AVG_HalfCheetah/h30 \
+    -env halfcheetah \
+    -o exp_cfg.exp_cfg.ntrain_iters 50 \
     -o ctrl_cfg.cem_cfg.cem_type POPLINP-SEP \
     -o ctrl_cfg.cem_cfg.training_scheme AVG-R \
     -o ctrl_cfg.cem_cfg.policy_network_shape [32] \

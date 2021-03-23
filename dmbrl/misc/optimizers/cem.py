@@ -34,8 +34,6 @@ class CEMOptimizer(Optimizer):
             alpha (float): Controls how much of the previous mean and variance is used for the next iteration.
                 next_mean = alpha * old_mean + (1 - alpha) * elite_mean, and similarly for variance.
         """
-        from dmbrl.modeling.models import GT_dynamics
-        self._gt_compile_cost = GT_dynamics.compile_cost
         super().__init__()
         self.sol_dim, self.max_iters, self.popsize, self.num_elites = \
             sol_dim, max_iters, popsize, num_elites
@@ -58,8 +56,6 @@ class CEMOptimizer(Optimizer):
         self.num_opt_iters, self.mean, self.var = None, None, None
         self.tf_compatible, self.cost_function = None, None
 
-        if self._params.il_cfg.use_gt_dynamics:
-            self._dynamics = GT_dynamics.GT(self._params)
 
     def setup(self, cost_function, tf_compatible):
         """Sets up this optimizer using a given cost function.

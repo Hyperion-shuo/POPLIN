@@ -14,6 +14,11 @@
 import numpy as np
 import tensorflow as tf
 
+import sys
+import os
+sys.path.append('/data/ShenShuo/workspace/POPLIN')
+
+
 from mbbl.config import init_path
 from mbbl.env import base_env_wrapper
 from mbbl.env import env_register
@@ -317,9 +322,12 @@ if __name__ == '__main__':
 
     test_env_name = ['gym_cheetah', 'gym_walker2d', 'gym_hopper',
                      'gym_swimmer', 'gym_ant']
+    misc_info = {'pets': False, 'reset_type': False}
     for env_name in test_env_name:
-        test_env = env(env_name, 1234, None)
-        api_env = env(env_name, 1234, None)
+        # test_env = env(env_name, 1234, None)
+        # api_env = env(env_name, 1234, None)
+        test_env = env(env_name, 1234, misc_info)
+        api_env = env(env_name, 1234, misc_info)
         api_env.reset()
         ob, reward, _, _ = test_env.reset()
         for _ in range(100):
